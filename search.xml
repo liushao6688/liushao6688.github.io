@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search> 
+  
+  
+    
+    <entry>
+      <title>最长递增子序列</title>
+      <link href="/2023/12/22/%E6%9C%80%E9%95%BF%E9%80%92%E5%A2%9E%E5%AD%90%E5%BA%8F%E5%88%97/"/>
+      <url>/2023/12/22/%E6%9C%80%E9%95%BF%E9%80%92%E5%A2%9E%E5%AD%90%E5%BA%8F%E5%88%97/</url>
+      
+        <content type="html"><![CDATA[<p>经典算法，给定一个序列，找到最长的子序列，且子序列单调递增。<br>如 { 3，5，7，1，2，8 } 的 LIS 是 { 3，5，7，8 }。</p><p>参考 <a href="https://leetcode.cn/problems/longest-increasing-subsequence/solutions/147667/zui-chang-shang-sheng-zi-xu-lie-by-leetcode-soluti/">leetcode 300.最长递增子序列</a></p><span id="more"></span><h2 id="1-动态规划"><a href="#1-动态规划" class="headerlink" title="1. 动态规划"></a>1. 动态规划</h2><p>定义dp数组，dp[i]表示以第i个元素结尾的LIS的长度。</p><p>计算dp[i]之前，dp[0…i-1]的值是已知的，则只要将第i个元素和之前的元素一一比较。若num[i] &gt; num[j] (0 &lt;&#x3D; j &lt; i)，说明num[i]可以接在num[j]后面形成更长的递增子序列，dp[i] &#x3D; max(dp[i], dp[j] + 1)；否则不做处理，因为dp[i]需要以第i个元素结尾。</p><p>整个序列的最长递增子序列的长度，即dp数组中的最大值。</p><pre><code>uint32_t getLIS(const std::vector&lt;uint32_t&gt; &amp;nums) &#123;  uint32_t size = nums.size();  if (size == 0) &#123;    return 0;  &#125;  std::vector&lt;uint32_t&gt; dp(size, 0);  for (uint32_t i = 0; i &lt; size; ++i) &#123;    for (uint32_t j = 0; j &lt; i; ++j) &#123;      if (nums[j] &lt; nums[i]) &#123;        dp[i] = max(dp[i], dp[j] + 1);      &#125;    &#125;  &#125;  return *max_elemext(dp.begin(), dp.end());&#125;</code></pre><h2 id="2-二分法"><a href="#2-二分法" class="headerlink" title="2. 二分法"></a>2. 二分法</h2><p>用贪心的思想，要子序列尽可能长，则序列中的每个数要尽量小，以便序列尽可能长。</p><p>维护一个数组d，d[i]表示子序列长度为i时，结尾元素的最小值。<br>d[i]是关于i单调递增的，借此可以使用二分法，加快更新速度。</p><p>递增证明：若 j &lt; i，d[j] &gt;&#x3D; d[i]，从长度为 i 的递增子序列末尾删除 i - j 个元素，长度变为 j，删除后的子序列最后一个元素x，必定是 x &lt; d[i] &lt; d[j]，即找到一个长度为 j，且末尾元素比 d[j] 小的子序列，与定义冲突。</p><p>遍历给定的序列，若 nums[i] 比数组 d 的最后一个元素大，则将 nums[i] 放到 d 的最后面，否则在数组 d 前面找到第一个比 nums[i] 小的数，将 nums[i] 放到其后面。</p><pre><code>uint32_t getLIS(const std::vector&lt;uint32_t&gt; &amp;nums) &#123;  uint32_t size = nums.size();  if (size == 0) &#123;    return 0;  &#125;  std::vector&lt;uint32_t&gt; d;  d.push_back(nums[0]);  for (uint32_t i = 1; i &lt; size; ++i) &#123;    auto it = lower_bound(d.begin(), d.end(), nums[i]);    if (it == d.end()) &#123;      d.push_back(nums[i]);    &#125; else &#123;      *it = nums[i];    &#125;  &#125;  return d.size();&#125;</code></pre>]]></content>
+      
+      
+      <categories>
+          
+          <category> 算法 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 算法 </tag>
+            
+            <tag> leetcode </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+  
+  
+</search>
