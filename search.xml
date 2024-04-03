@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search> 
+  
+  
+    
+    <entry>
+      <title>Hello World</title>
+      <link href="/hello/"/>
+      <url>/hello/</url>
+      
+        <content type="html"><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p><span id="more"></span><h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p><h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p><h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p><h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>]]></content>
+      
+      
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>使用cppmockfree遇到的问题</title>
+      <link href="/C++/cppmockfree/"/>
+      <url>/C++/cppmockfree/</url>
+      
+        <content type="html"><![CDATA[<p>使用cppmockfree遇到的问题。</p><span id="more"></span><ol><li>在用cppmockfree对虚函数进行mock时，直接对函数名mock会出现编译错误，说找不到匹配的函数。</li></ol><p>原因分析：一个可能的原因是，对于普通函数，可以根据函数名找到函数的地址；但是对于类中的虚函数，其地址是与对象有关的（虚函数表+偏移），因此只根据函数名可能会找不到函数地址。</p><p>解决：通过偏移去找到虚函数地址，再进行mock；或者使用OBTAIN_REAL_FUNC这个宏。</p><p>示例：</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">namespace AA &#123;</span><br><span class="line">class A &#123;</span><br><span class="line"> public:</span><br><span class="line">  virtual ~A() &#123;&#125;</span><br><span class="line">  virtual int func(int a) &#123;&#125;</span><br><span class="line">  virtual int func(int a, int b) &#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">TEST_F(TestCppMockFree, caseVirtualFunc)</span><br><span class="line">&#123;</span><br><span class="line">  A a;</span><br><span class="line">  // 防止有重载的函数，用typedef定义函数类型</span><br><span class="line">  typedef int (AA::A::*TEST_FUNC)(int, int);</span><br><span class="line">  auto test_func = (TEST_FUNC)&amp;AA::A::func;</span><br><span class="line">  // 获取实际函数指针</span><br><span class="line">  auto real_func = OBTAIN_REAL_FUNC(&amp;a, (intptr_t&amp;)test_func);</span><br><span class="line">  // 定义一个相当于成员函数的普通函数类型，因为OBTAIN_REAL_FUNC返回的是void*，无法强转成类的成员函数（虚函数表、偏移等会导致转换可能出错）</span><br><span class="line">  typedef int (*REAL_FUNC)(AA::A*, int, int);</span><br><span class="line">  auto mock = MOCKER((REAL_FUNC)real_func);</span><br><span class="line">  </span><br><span class="line">  EXPECT_CALL(*mock, MOCK_FUNCTION(_, _, _)).WillRepeatedly(Return(123456));</span><br><span class="line">  ...</span><br><span class="line">  mock-&gt;RestoreReal();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>OBTAIN_REAL_FUNC函数如下：</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">#define OBTAIN_FUNC_FUNC(obj_ptr, member_func) \</span><br><span class="line">  obtainRealFunc(obj_ptr, reinterpret_cast&lt;const void*&gt;(member_func)</span><br><span class="line"></span><br><span class="line">inline void* obtainRealFunc(const void* obj_ptr, const void* member_func)</span><br><span class="line">&#123;</span><br><span class="line">  intptr_t func_offset = reinterpret_cast&lt;intptr_t&gt;(member_func);</span><br><span class="line">  intptr_t func_addr = *reinterpret_cast&lt;intptr_t*&gt;(*reinterpret_cast&lt;const intptr_t*&gt;(obj_ptr) + func_offset - 1);</span><br><span class="line">  return reinterpret_cast&lt;void*&gt;(func_addr);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>]]></content>
+      
+      
+      <categories>
+          
+          <category> C++ </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 单元测试 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>hexo使用markdown画图</title>
+      <link href="/%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA/hexo%E4%BD%BF%E7%94%A8markdown%E7%94%BB%E5%9B%BE/"/>
+      <url>/%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA/hexo%E4%BD%BF%E7%94%A8markdown%E7%94%BB%E5%9B%BE/</url>
+      
+        <content type="html"><![CDATA[<p> 配置hexo，使博客支持渲染图表。</p><span id="more"></span><h1 id="mermaid"><a href="#mermaid" class="headerlink" title="mermaid"></a><a href="https://mermaid.js.org/">mermaid</a></h1><p>一款可以在markdown中画图表的工具，基于javascript实现，可以将markdown文档中的元素渲染成html元素。（理解有限，更多自行搜索了解）</p><h1 id="基于next主题配置mermaid"><a href="#基于next主题配置mermaid" class="headerlink" title="基于next主题配置mermaid"></a>基于next主题配置mermaid</h1><h2 id="安装插件"><a href="#安装插件" class="headerlink" title="安装插件"></a>安装插件</h2>  <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install --save hexo-filter-mermain-diagrams</span><br></pre></td></tr></table></figure><h2 id="修改主题配置文件"><a href="#修改主题配置文件" class="headerlink" title="修改主题配置文件"></a>修改主题配置文件</h2><p>搜索mermaid，将enable置为true。</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># Mermaid tag</span><br><span class="line">mermaid:</span><br><span class="line">  enable: true</span><br><span class="line">  # Available themes: default | dark | forest | neutral</span><br><span class="line">  theme: forest</span><br></pre></td></tr></table></figure><h2 id="修改next-layout-partials-footer-swig"><a href="#修改next-layout-partials-footer-swig" class="headerlink" title="修改next&#x2F;layout&#x2F;_partials&#x2F;footer.swig"></a>修改next&#x2F;layout&#x2F;_partials&#x2F;footer.swig</h2><p>在文件末尾加上以下的内容</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">&#123;% if theme.mermaid.enable %&#125;</span><br><span class="line">  &lt;script src=&#x27;/js/mermaid.min.js&#x27;&gt;&lt;/script&gt;</span><br><span class="line">  &lt;script&gt;</span><br><span class="line">    $(document).ready(function() &#123;</span><br><span class="line">      var mermaid_config = &#123;</span><br><span class="line">        startOnLoad: true,</span><br><span class="line">        theme: &#x27;&lt;%- theme.mermaid.theme %&gt;&#x27;,</span><br><span class="line">        flowchart: &#123;</span><br><span class="line">          useMaxWidth: false,</span><br><span class="line">          htmlLabels: true</span><br><span class="line">          &#125;</span><br><span class="line">          mermaid.initialize(mermaid_config);</span><br><span class="line">      &#125;);</span><br><span class="line">  &lt;/script&gt;</span><br><span class="line">&#123;% endif %&#125;</span><br></pre></td></tr></table></figure><h2 id="下载mermaid-min-js文件"><a href="#下载mermaid-min-js文件" class="headerlink" title="下载mermaid.min.js文件"></a>下载mermaid.min.js文件</h2><p>将<a href="https://cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js">mermaid.min.js</a> 和 <a href="https://cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js.map">mermaid.min.js.map</a>两个文件放到next&#x2F;source&#x2F;js&#x2F;目录下。<br>（也可不下载，只需将上述src直接指向<a href="https://cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js%EF%BC%89">https://cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js）</a></p><h1 id="用mermaid画类图"><a href="#用mermaid画类图" class="headerlink" title="用mermaid画类图"></a>用mermaid画类图</h1><table><thead><tr><th align="center">key</th><th align="center">description</th></tr></thead><tbody><tr><td align="center">&lt;|–</td><td align="center">继承</td></tr><tr><td align="center">*–</td><td align="center">组合</td></tr><tr><td align="center">o–</td><td align="center">集合</td></tr><tr><td align="center">–&gt;</td><td align="center">联合</td></tr><tr><td align="center">–</td><td align="center">链接(solid)</td></tr><tr><td align="center">..&gt;</td><td align="center">属于</td></tr><tr><td align="center">..|&gt;</td><td align="center">实现</td></tr><tr><td align="center">..</td><td align="center">链接(dashed)</td></tr><tr><td align="center">+</td><td align="center">公有属性</td></tr><tr><td align="center">-</td><td align="center">私有属性</td></tr><tr><td align="center">#</td><td align="center">受保护属性</td></tr><tr><td align="center">~</td><td align="center">封装&#x2F;内部属性</td></tr><tr><td align="center">$</td><td align="center">static</td></tr><tr><td align="center">*</td><td align="center">abstract</td></tr><tr><td align="center">&lt;&lt;Interface&gt;&gt;</td><td align="center">接口类</td></tr><tr><td align="center">&lt;&lt;Abstract&gt;&gt;</td><td align="center">抽象类</td></tr><tr><td align="center">&lt;&lt;Service&gt;&gt;</td><td align="center">服务类</td></tr><tr><td align="center">&lt;&lt;Enumeration&gt;&gt;</td><td align="center">枚举</td></tr></tbody></table><p>示例</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">```(中间没有间隔，不加的话会打印奇怪的东西，很困惑）mermaid</span><br><span class="line">classDiagram</span><br><span class="line">class A&#123;</span><br><span class="line">+int a</span><br><span class="line">+geta() int</span><br><span class="line">~int b</span><br><span class="line">&#125;</span><br><span class="line">class B&#123;</span><br><span class="line">-list~int~ a</span><br><span class="line">+int b $</span><br><span class="line">&#125;</span><br><span class="line">A &lt;|-- B : 类B继承类A</span><br><span class="line">A *-- C</span><br><span class="line">A o-- D</span><br><span class="line">A &quot;1..*&quot; &lt;.. &quot;1&quot; E : 一对多</span><br><span class="line">```</span><br></pre></td></tr></table></figure><pre class="mermaid">classDiagram    class A{        +int a        +geta() int        ~int b    }    class B{        -list~int~ a        +int b $    }    A <|-- B : 类B继承类A    A *-- C    A o-- D    A "1..*" <.. "1" E : 一对多</pre>]]></content>
+      
+      
+      <categories>
+          
+          <category> 博客搭建 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> hexo </tag>
+            
+            <tag> markdown </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>设计模式学习</title>
+      <link href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/"/>
+      <url>/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/</url>
+      
+        <content type="html"><![CDATA[<p>仅供个人学习，若有不对的地方，欢迎大佬指正。</p><span id="more"></span><ul><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E5%88%9B%E5%BB%BA%E5%9E%8B%E6%A8%A1%E5%BC%8F">创建型模式</a><ul><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E6%8A%BD%E8%B1%A1%E5%B7%A5%E5%8E%82">Abstract Factory</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E7%94%9F%E6%88%90%E5%99%A8">Builder</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E5%B7%A5%E5%8E%82%E6%96%B9%E6%B3%95">Factory Method</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E5%8E%9F%E5%9E%8B">Prototype</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E5%8D%95%E4%BB%B6">Singleton</a></li></ul></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E7%BB%93%E6%9E%84%E5%9E%8B%E6%A8%A1%E5%BC%8F">结构型模式</a><ul><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E9%80%82%E9%85%8D%E5%99%A8">Adapter</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E6%A1%A5%E6%8E%A5">Bridge</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E7%BB%84%E5%90%88">Composite</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E8%A3%85%E9%A5%B0">Decorator</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E5%A4%96%E8%A7%82">Facade</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E4%BA%AB%E5%85%83">Flyweight</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E4%BB%A3%E7%90%86">Proxy</a></li></ul></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E8%A1%8C%E4%B8%BA%E5%9E%8B%E6%A8%A1%E5%BC%8F">行为型模式</a><ul><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E8%81%8C%E8%B4%A3%E9%93%BE">Chain of Responsibility</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E5%91%BD%E4%BB%A4">Command</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E8%A7%A3%E9%87%8A%E5%99%A8">Interpreter</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E8%BF%AD%E4%BB%A3%E5%99%A8">Iterator</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E4%B8%AD%E4%BB%8B%E8%80%85">Mediator</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E5%A4%87%E5%BF%98%E5%BD%95">Memento</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E8%A7%82%E5%AF%9F%E8%80%85">Observer</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E7%8A%B6%E6%80%81">State</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E7%AD%96%E7%95%A5">Strategy</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E6%A8%A1%E6%9D%BF%E6%96%B9%E6%B3%95">Template Method</a></li><li><a href="/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/%E8%AE%BF%E9%97%AE%E8%80%85">Visitor</a></li></ul></li></ul>]]></content>
+      
+      
+      <categories>
+          
+          <category> 设计模式 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 设计模式 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>最长递增子序列</title>
+      <link href="/%E7%AE%97%E6%B3%95/%E6%9C%80%E9%95%BF%E9%80%92%E5%A2%9E%E5%AD%90%E5%BA%8F%E5%88%97/"/>
+      <url>/%E7%AE%97%E6%B3%95/%E6%9C%80%E9%95%BF%E9%80%92%E5%A2%9E%E5%AD%90%E5%BA%8F%E5%88%97/</url>
+      
+        <content type="html"><![CDATA[<p>经典算法，给定一个序列，找到最长的子序列，且子序列单调递增。<br>如 { 3，5，7，1，2，8 } 的 LIS 是 { 3，5，7，8 }。</p><p>参考 <a href="https://leetcode.cn/problems/longest-increasing-subsequence/solutions/147667/zui-chang-shang-sheng-zi-xu-lie-by-leetcode-soluti/">leetcode 300.最长递增子序列</a></p><span id="more"></span><h2 id="1-动态规划"><a href="#1-动态规划" class="headerlink" title="1. 动态规划"></a>1. 动态规划</h2><p>定义dp数组，dp[i]表示以第i个元素结尾的LIS的长度。</p><p>计算dp[i]之前，dp[0…i-1]的值是已知的，则只要将第i个元素和之前的元素一一比较。若num[i] &gt; num[j] (0 &lt;&#x3D; j &lt; i)，说明num[i]可以接在num[j]后面形成更长的递增子序列，dp[i] &#x3D; max(dp[i], dp[j] + 1)；否则不做处理，因为dp[i]需要以第i个元素结尾。</p><p>整个序列的最长递增子序列的长度，即dp数组中的最大值。</p><pre><code>uint32_t getLIS(const std::vector&lt;uint32_t&gt; &amp;nums) &#123;  uint32_t size = nums.size();  if (size == 0) &#123;    return 0;  &#125;  std::vector&lt;uint32_t&gt; dp(size, 0);  for (uint32_t i = 0; i &lt; size; ++i) &#123;    for (uint32_t j = 0; j &lt; i; ++j) &#123;      if (nums[j] &lt; nums[i]) &#123;        dp[i] = max(dp[i], dp[j] + 1);      &#125;    &#125;  &#125;  return *max_elemext(dp.begin(), dp.end());&#125;</code></pre><h2 id="2-二分法"><a href="#2-二分法" class="headerlink" title="2. 二分法"></a>2. 二分法</h2><p>用贪心的思想，要子序列尽可能长，则序列中的每个数要尽量小，以便序列尽可能长。</p><p>维护一个数组d，d[i]表示子序列长度为i时，结尾元素的最小值。<br>d[i]是关于i单调递增的，借此可以使用二分法，加快更新速度。</p><p>递增证明：若 j &lt; i，d[j] &gt;&#x3D; d[i]，从长度为 i 的递增子序列末尾删除 i - j 个元素，长度变为 j，删除后的子序列最后一个元素x，必定是 x &lt; d[i] &lt; d[j]，即找到一个长度为 j，且末尾元素比 d[j] 小的子序列，与定义冲突。</p><p>遍历给定的序列，若 nums[i] 比数组 d 的最后一个元素大，则将 nums[i] 放到 d 的最后面，否则在数组 d 前面找到第一个比 nums[i] 小的数，将 nums[i] 放到其后面。</p><pre><code>uint32_t getLIS(const std::vector&lt;uint32_t&gt; &amp;nums) &#123;  uint32_t size = nums.size();  if (size == 0) &#123;    return 0;  &#125;  std::vector&lt;uint32_t&gt; d;  d.push_back(nums[0]);  for (uint32_t i = 1; i &lt; size; ++i) &#123;    auto it = lower_bound(d.begin(), d.end(), nums[i]);    if (it == d.end()) &#123;      d.push_back(nums[i]);    &#125; else &#123;      *it = nums[i];    &#125;  &#125;  return d.size();&#125;</code></pre>]]></content>
+      
+      
+      <categories>
+          
+          <category> 算法 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 算法 </tag>
+            
+            <tag> leetcode </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+  
+  
+</search>
